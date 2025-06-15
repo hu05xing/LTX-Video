@@ -740,6 +740,10 @@ class LTXVideoPipeline(DiffusionPipeline):
         ), "Input media_item or latents are provided, but they will be replaced with noise."
 
         if media_items is not None:
+            media_items = media_items.to(dtype=self.vae.dtype, device=self.vae.device)
+            logger.debug(f"✅prepare_latents: media_items.device = {media_items.device}, vae.device = {self.vae.device}")
+            assert media_items.device == self.vae.device, f"Media_items not on vae.device: {media_items.device} vs {self.vae.device}"
+
             latents = vae_encode(
                 media_items.to(dtype=self.vae.dtype, device=self.vae.device),
                 self.vae,
@@ -1265,6 +1269,9 @@ class LTXVideoPipeline(DiffusionPipeline):
                     logger.debug(f"✅模型输入设备: {latent_model_input.device}")
                     logger.debug(f"✅坐标输入设备: {fractional_coords.device}")
                     logger.debug(f"✅提示词嵌入设备: {prompt_embeds_batch.device}")
+                    assert latent_model_input.device == self._execution_device
+                    assert fractional_coords.device == self._execution_device
+                    assert prompt_embeds_batch.device == self._execution_device
 
                     noise_pred = self.transformer(
                         latent_model_input.to(self.transformer.dtype),
@@ -1533,6 +1540,8 @@ class LTXVideoPipeline(DiffusionPipeline):
                     self.vae,
                     vae_per_channel_normalize=vae_per_channel_normalize,
                 ).to(dtype=init_latents.dtype)
+                logger.debug(f"✅prepare_conditioning: media_item_latents.device = {media_item_latents.device}, vae.device = {self.vae.device}")
+                assert media_item_latents.device == self.vae.device, f"media_item_latents.device mismatch: {media_item_latents.device} vs {self.vae.device}"
 
                 # 处理不同条件情况
                 if media_frame_number == 0:
