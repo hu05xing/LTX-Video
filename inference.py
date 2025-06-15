@@ -632,7 +632,8 @@ def infer(
     )
     if conditioning_items:                                                      # 添加
         for idx, item in enumerate(conditioning_items):                         # 添加
-            logger.debug(f"✅推理文件条件媒体 #{idx} 设备: {item.media_item.device}")  # 添加在这里
+            logger.debug(f"✅推理: 条件媒体 #{idx} device = {item.media_item.device}, target = {device}")
+            assert item.media_item.device == device, f"ConditioningItem device mismatch: {item.media_item.device} vs {device}"
 
     # 注意力机制
     stg_mode = pipeline_config.get("stg_mode", "attention_values")
@@ -659,8 +660,9 @@ def infer(
 
     device = device or get_device()
     generator = torch.Generator(device=device).manual_seed(seed)
-    logger.debug(f"✅推理文件生成器设备: {generator.device}")
-    logger.debug(f"✅推理文件管道设备: {pipeline.device}")
+    logger.debug(f"✅infer: generator.device = {generator.device}, pipeline.device = {pipeline.device}, target = {device}")
+    assert generator.device == device, f"Generator device mismatch: {generator.device} vs {device}"
+    assert pipeline.device == device or str(pipeline.device) == str(device), f"Pipeline device mismatch: {pipeline.device} vs {device}"
 
     # 图像管道
     images = pipeline(
@@ -786,8 +788,9 @@ def prepare_conditioning(
         )
         # 强制转移到目标设备
         media_tensor = media_tensor.to(device)                    # 添加设备转移
+        logger.debug(f"✅prepare_conditioning: media_tensor.device = {media_tensor.device}, target device = {device}")
+        assert media_tensor.device == device, f"media_tensor device mismatch: {media_tensor.device} vs {device}"
         conditioning_items.append(ConditioningItem(media_tensor, start_frame, strength))           # 媒体张量、开始帧、强度
-        logger.debug(f"✅推理文件获取媒体张量设备成功: {media_tensor.device}")
 
     return conditioning_items
 
