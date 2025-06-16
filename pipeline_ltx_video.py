@@ -1540,7 +1540,7 @@ class LTXVideoPipeline(DiffusionPipeline):
                     self.vae,
                     vae_per_channel_normalize=vae_per_channel_normalize,
                 ).to(dtype=init_latents.dtype)
-                logger.debug(f"✅prepare_conditioning: media_item_latents.device = {media_item_latents.device}, vae.device = {self.vae.device}")
+                logger.debug(f"✅条件项更新: media_item_latents.device = {media_item_latents.device}, vae.device = {self.vae.device}")
                 assert media_item_latents.device == self.vae.device, f"media_item_latents.device mismatch: {media_item_latents.device} vs {self.vae.device}"
 
                 # 处理不同条件情况
@@ -1644,7 +1644,7 @@ class LTXVideoPipeline(DiffusionPipeline):
         init_conditioning_mask = init_conditioning_mask.squeeze(-1)
 
         if extra_conditioning_latents:
-            # Stack the extra conditioning latents, pixel coordinates and mask
+            # 堆叠额外的条件latents像素坐标与掩码，这此列表中张量其中一个仍是 CPU，其它是 cuda，就会抛出遇到的错误。
             init_latents = torch.cat([*extra_conditioning_latents, init_latents], dim=1)
             init_pixel_coords = torch.cat(
                 [*extra_conditioning_pixel_coords, init_pixel_coords], dim=2
