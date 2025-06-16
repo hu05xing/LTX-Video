@@ -55,9 +55,9 @@ def get_total_gpu_memory():
 
 def get_device():
     if torch.cuda.is_available():                           # 如果"cuda"可以获得
-        return "cuda"                                       # 返回英伟达设备
+        return "cuda"                         # 返回英伟达设备
     elif torch.backends.mps.is_available():                 # 如果torch后端计划可发获得，返回计划，则当前 PyTorch 版本支持使用 NVIDIA MPS 来加速训练。
-        return "mps"                                        # 返回苹果设备
+        return "mps"                          # 返回苹果设备
     return "cpu"
 
 def load_image_to_tensor_with_resize_and_crop(
@@ -98,7 +98,6 @@ def load_image_to_tensor_with_resize_and_crop(
         x_start = 0
         y_start = (input_height - new_height) // 2              # 垂直居中
 
-
     image = image.crop((x_start, y_start, x_start + new_width, y_start + new_height))
     if not just_crop:
         image = image.resize((target_width, target_height))
@@ -112,7 +111,6 @@ def load_image_to_tensor_with_resize_and_crop(
     frame_tensor = (frame_tensor / 127.5) - 1.0
     # 创建 5D 张量: (batch_size=1, channels=3, num_frames=1, height, width)
     return frame_tensor.unsqueeze(0).unsqueeze(2)
-
 
 def calculate_padding(
     source_height: int, source_width: int, target_height: int, target_width: int
@@ -316,7 +314,7 @@ def create_ltx_video_pipeline(
     precision: str,                                    # 精度
     text_encoder_model_name_or_path: str,              # 文本编码器路径
     sampler: Optional[str] = None,                     # 采样、自选（没有）
-    device: Optional[str] = None,                      # 设备、自选（没有）
+    device: Optional[str] = None,            # 设备、自选（没有）
     enhance_prompt: bool = False,
     prompt_enhancer_image_caption_model_name_or_path: Optional[str] = None,          # 提示图像增强模型路径
     prompt_enhancer_llm_model_name_or_path: Optional[str] = None,                    # 提示词增强模型路径
@@ -584,12 +582,12 @@ def infer(
         precision=precision,
         text_encoder_model_name_or_path=text_encoder_model_name_or_path,              # 文本编码器模型
         sampler=sampler,
-        device=kwargs.get("device", get_device()),                                    # 从关键参数中获取设备
+        device=kwargs.get("device", get_device()),  # 从关键参数中获取设备,参数中没有设备指定
         enhance_prompt=enhance_prompt,
         prompt_enhancer_image_caption_model_name_or_path=prompt_enhancer_image_caption_model_name_or_path,
         prompt_enhancer_llm_model_name_or_path=prompt_enhancer_llm_model_name_or_path,
     )
-    logger.debug(f"✅推理文件视频生成管道字典：{device}")
+    logger.debug(f"✅推理文件视频生成管道字典设备：{device}")
 
     if pipeline_config.get("pipeline_type", None) == "multi-scale":
         if not spatial_upscaler_model_path:
@@ -613,8 +611,7 @@ def infer(
             max_frames=num_frames_padded,
             padding=padding,
         )
-        logger.debug(f"✅输入媒体文件设备: {media_item.device if media_item is not None else 'None'}") 
-   
+    
     conditioning_items = (
         prepare_conditioning(
             conditioning_media_paths=conditioning_media_paths,
@@ -625,7 +622,6 @@ def infer(
             num_frames=num_frames,
             padding=padding,
             pipeline=pipeline,
-            device=device  # 添加传递设备参数，解决张量不在同一设备上错误
         )
         if conditioning_media_paths
         else None
@@ -633,7 +629,6 @@ def infer(
     if conditioning_items:                                                      # 添加
         for idx, item in enumerate(conditioning_items):                         # 添加
             logger.debug(f"✅推理: 条件媒体 #{idx} device = {item.media_item.device}, target = {device}")
-            assert item.media_item.device == device, f"ConditioningItem device mismatch: {item.media_item.device} vs {device}"
 
     # 注意力机制
     stg_mode = pipeline_config.get("stg_mode", "attention_values")
@@ -660,9 +655,7 @@ def infer(
 
     device = device or get_device()
     generator = torch.Generator(device=device).manual_seed(seed)
-    logger.debug(f"✅infer: generator.device = {generator.device}, pipeline.device = {pipeline.device}, target = {device}")
-    assert generator.device == device, f"Generator device mismatch: {generator.device} vs {device}"
-    assert pipeline.device == device or str(pipeline.device) == str(device), f"Pipeline device mismatch: {pipeline.device} vs {device}"
+    logger.debug(f"✅管道获取设备: {device}, 生成器设备获取{generator}")
 
     # 图像管道
     images = pipeline(
@@ -744,7 +737,6 @@ def prepare_conditioning(
     num_frames: int,
     padding: tuple[int, int, int, int],
     pipeline: LTXVideoPipeline,
-    device: torch.device,  # 新增设备参数处理线量不在同一设备上错误
 ) -> Optional[List[ConditioningItem]]:
     """根据输入媒体路径及参数准备调节项.
 
@@ -785,11 +777,7 @@ def prepare_conditioning(
             max_frames=num_input_frames,
             padding=padding,
             just_crop=True,
-        )
-        # 强制转移到目标设备
-        media_tensor = media_tensor.to(device)                    # 添加设备转移
-        logger.debug(f"✅prepare_conditioning: media_tensor.device = {media_tensor.device}, target device = {device}")
-        assert media_tensor.device == device, f"media_tensor device mismatch: {media_tensor.device} vs {device}"
+        )   
         conditioning_items.append(ConditioningItem(media_tensor, start_frame, strength))           # 媒体张量、开始帧、强度
 
     return conditioning_items
@@ -838,12 +826,12 @@ def load_media_file(
 
         # 沿时间维度堆叠帧
         media_tensor = torch.cat(frames, dim=2)
-    else:  # Input image
+    else:                                                                            # 输入图像
         media_tensor = load_image_to_tensor_with_resize_and_crop(
             media_path, height, width, just_crop=just_crop
         )
         media_tensor = torch.nn.functional.pad(media_tensor, padding)
-        logger.debug(f"✅推理文件获取帧总数")
+ 
     return media_tensor
 
 
