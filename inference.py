@@ -612,6 +612,7 @@ def infer(
             padding=padding,
         )
     
+    # infer 调用处
     conditioning_items = (
         prepare_conditioning(
             conditioning_media_paths=conditioning_media_paths,
@@ -622,6 +623,7 @@ def infer(
             num_frames=num_frames,
             padding=padding,
             pipeline=pipeline,
+            device=device,  # 新增参数
         )
         if conditioning_media_paths
         else None
@@ -737,6 +739,7 @@ def prepare_conditioning(
     num_frames: int,
     padding: tuple[int, int, int, int],
     pipeline: LTXVideoPipeline,
+    device: str,  # 新增
 ) -> Optional[List[ConditioningItem]]:
     """根据输入媒体路径及参数准备调节项.
 
@@ -769,7 +772,7 @@ def prepare_conditioning(
                 f"Trimming conditioning video {path} from {orig_num_input_frames} to {num_input_frames} frames."
             )
         
-        # 媒体张量
+        # 媒体张量=加载的媒体文件
         media_tensor = load_media_file(
             media_path=path,
             height=height,
@@ -777,7 +780,8 @@ def prepare_conditioning(
             max_frames=num_input_frames,
             padding=padding,
             just_crop=True,
-        )   
+        )
+        media_tensor = media_tensor.to(device)  # 新增：转到目标设备   
         conditioning_items.append(ConditioningItem(media_tensor, start_frame, strength))           # 媒体张量、开始帧、强度
 
     return conditioning_items
